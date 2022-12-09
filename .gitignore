@@ -1,4 +1,7 @@
 *.MP4
 *.mp4
 *.list.txt
-cover.png
+*.jpg
+*.png
+!overlay.png
+!cover-overlay*

@@ -18,6 +18,12 @@ ffmpeg -i combined.mp4 -i overlay.png -filter_complex '[0:v][1:v] overlay=0:0' -
 
 rm -f combined.mp4
 
+rm -f cover-raw.png
+
+ffmpeg -ss 00:00:05 -i final.mp4 -vframes 1 -q:v 1 cover-raw.png
+
 rm -f cover.png
 
-ffmpeg -ss 00:00:05 -i final.mp4 -vframes 1 -q:v 1 cover.png
+ffmpeg -i cover-raw.png -i cover-overlay-to-work.png -filter_complex '[0:v][1:v] overlay=0:0' cover.png
+
+rm -f cover-raw.png
