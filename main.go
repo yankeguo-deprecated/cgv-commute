@@ -66,6 +66,7 @@ func main() {
 
 	// clean files
 	gg.Must0(os.RemoveAll(DirRes))
+	defer gg.Must0(os.RemoveAll(DirRes))
 	gg.Must0(os.RemoveAll(fileFinal))
 	gg.Must0(os.RemoveAll(fileCover))
 
