@@ -17,9 +17,7 @@ import (
 )
 
 const (
-	FileFinalMP4 = "final.mp4"
-	FileCoverJPG = "cover.jpg"
-	DirRes       = "res"
+	DirRes = "res"
 )
 
 var (
@@ -33,13 +31,23 @@ func main() {
 	defer gg.Guard(&err)
 
 	var (
-		optTo  bool
-		optOff bool
+		optTo   bool
+		optOff  bool
+		optName string
 	)
 
 	flag.BoolVar(&optTo, "to", false, "to work")
 	flag.BoolVar(&optOff, "off", false, "off work")
+	flag.StringVar(&optName, "name", "", "name")
 	flag.Parse()
+
+	if optName == "" {
+		err = errors.New("missing -name")
+		return
+	}
+
+	fileFinal := optName + ".mp4"
+	fileCover := optName + ".cover.jpg"
 
 	var (
 		mode string
@@ -58,8 +66,8 @@ func main() {
 
 	// clean files
 	gg.Must0(os.RemoveAll(DirRes))
-	gg.Must0(os.RemoveAll(FileFinalMP4))
-	gg.Must0(os.RemoveAll(FileCoverJPG))
+	gg.Must0(os.RemoveAll(fileFinal))
+	gg.Must0(os.RemoveAll(fileCover))
 
 	// extract res
 	{
@@ -121,7 +129,7 @@ func main() {
 
 		argv = append(argv, "-filter_complex", fcBuf.String())
 		argv = append(argv, "-map", "[stage2]")
-		argv = append(argv, "-c:v", "h264_videotoolbox", "-b:v", "15M", FileFinalMP4)
+		argv = append(argv, "-c:v", "h264_videotoolbox", "-b:v", "15M", fileFinal)
 
 		gg.Must0(execute(argv...))
 	}
@@ -134,12 +142,12 @@ func main() {
 				"-ss",
 				"00:00:05",
 				"-i",
-				FileFinalMP4,
+				fileFinal,
 				"-vframes",
 				"1",
 				"-q:v",
 				"1",
-				FileCoverJPG,
+				fileCover,
 			),
 		)
 	}
