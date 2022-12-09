@@ -86,7 +86,7 @@ func main() {
 
 		fcBuf := &bytes.Buffer{}
 
-		fcBuf.WriteString(fmt.Sprintf("[0:v] [%d:v] overlay=enable='between(t,2,7)' [new0v]; ", idTitle))
+		fcBuf.WriteString(fmt.Sprintf("[0:v] [%d:v] overlay=enable='between(t,1,10)' [new0v]; ", idTitle))
 
 		fcBuf.WriteString("[new0v] [0:a] ")
 		for i := range names {
