@@ -96,10 +96,11 @@ func main() {
 			fcBuf.WriteString(fmt.Sprintf("[%d:v] [%d:a] ", i, i))
 		}
 		fcBuf.WriteString(fmt.Sprintf("concat=n=%d:v=1:a=1 [stage1v] [stage1a]; ", len(names)))
-		fcBuf.WriteString(fmt.Sprintf("[stage1v] [%d:v] overlay [stage2v]", idOverlay))
+		fcBuf.WriteString(fmt.Sprintf("[stage1v] [%d:v] overlay [stage2v]; ", idOverlay))
+		fcBuf.WriteString("[stage2v] scale=w=-1:h=1080 [stage3v]")
 
 		argv = append(argv, "-filter_complex", fcBuf.String())
-		argv = append(argv, "-map", "[stage2v]")
+		argv = append(argv, "-map", "[stage3v]")
 		argv = append(argv, "-map", "[stage1a]")
 		argv = append(argv,
 			"-c:v", "h264_videotoolbox", "-b:v", "15M",
