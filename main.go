@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"embed"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/guoyk93/gg"
 	"github.com/guoyk93/gg/ggos"
@@ -30,39 +29,10 @@ func main() {
 	defer ggos.Exit(&err)
 	defer gg.Guard(&err)
 
-	var (
-		optTo   bool
-		optOff  bool
-		optName string
-	)
-
-	flag.BoolVar(&optTo, "to", false, "to work")
-	flag.BoolVar(&optOff, "off", false, "off work")
-	flag.StringVar(&optName, "name", "", "name")
-	flag.Parse()
-
-	if optName == "" {
-		err = errors.New("missing -name")
-		return
-	}
+	optName := filepath.Base(gg.Must(os.Getwd()))
 
 	fileFinal := optName + ".mp4"
 	fileCover := optName + ".cover.jpg"
-
-	var (
-		mode string
-	)
-
-	if optTo {
-		mode = "to"
-	} else if optOff {
-		mode = "off"
-	} else {
-		err = errors.New("one of 'on' and 'off' is required")
-		return
-	}
-
-	_ = mode
 
 	// clean files
 	gg.Must0(os.RemoveAll(DirRes))
@@ -109,28 +79,33 @@ func main() {
 			argv = append(argv, "-i", item)
 		}
 		argv = append(argv, "-i", filepath.Join("res", "overlay.png"))
-		argv = append(argv, "-i", filepath.Join("res", "title-overlay-"+mode+"-work.png"))
+		argv = append(argv, "-i", "title.png")
 
 		idOverlay := len(names)
 		idTitle := idOverlay + 1
 
 		fcBuf := &bytes.Buffer{}
 
-		fcBuf.WriteString(fmt.Sprintf("[0:v] [%d:v] overlay=enable='between(t,3,10)' [new0]; ", idTitle))
+		fcBuf.WriteString(fmt.Sprintf("[0:v] [%d:v] overlay=enable='between(t,2,7)' [new0v]; ", idTitle))
 
-		fcBuf.WriteString("[new0] ")
+		fcBuf.WriteString("[new0v] [0:a] ")
 		for i := range names {
 			if i == 0 {
 				continue
 			}
-			fcBuf.WriteString(fmt.Sprintf("[%d:v] ", i))
+			fcBuf.WriteString(fmt.Sprintf("[%d:v] [%d:a] ", i, i))
 		}
-		fcBuf.WriteString(fmt.Sprintf("concat=n=%d:v=1:a=0 [stage1]; ", len(names)))
-		fcBuf.WriteString(fmt.Sprintf("[stage1] [%d:v] overlay [stage2]", idOverlay))
+		fcBuf.WriteString(fmt.Sprintf("concat=n=%d:v=1:a=1 [stage1v] [stage1a]; ", len(names)))
+		fcBuf.WriteString(fmt.Sprintf("[stage1v] [%d:v] overlay [stage2v]", idOverlay))
 
 		argv = append(argv, "-filter_complex", fcBuf.String())
-		argv = append(argv, "-map", "[stage2]")
-		argv = append(argv, "-c:v", "h264_videotoolbox", "-b:v", "15M", fileFinal)
+		argv = append(argv, "-map", "[stage2v]")
+		argv = append(argv, "-map", "[stage1a]")
+		argv = append(argv,
+			"-c:v", "h264_videotoolbox", "-b:v", "15M",
+			"-c:a", "aac",
+			fileFinal,
+		)
 
 		gg.Must0(execute(argv...))
 	}
