@@ -5,22 +5,21 @@ import (
 	"embed"
 	"errors"
 	"flag"
+	"fmt"
 	"github.com/guoyk93/gg"
 	"github.com/guoyk93/gg/ggos"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
 const (
-	FileListTXT     = "list.txt"
-	FileCombinedMP4 = "combined.mp4"
-	FileFinalMP4    = "final.mp4"
-	FileCoverRawPNG = "cover-raw.png"
-	FileCoverJPG    = "cover.jpg"
-	DirRes          = "res"
+	FileFinalMP4 = "final.mp4"
+	FileCoverJPG = "cover.jpg"
+	DirRes       = "res"
 )
 
 var (
@@ -59,10 +58,7 @@ func main() {
 
 	// clean files
 	gg.Must0(os.RemoveAll(DirRes))
-	gg.Must0(os.RemoveAll(FileListTXT))
-	gg.Must0(os.RemoveAll(FileCombinedMP4))
 	gg.Must0(os.RemoveAll(FileFinalMP4))
-	gg.Must0(os.RemoveAll(FileCoverRawPNG))
 	gg.Must0(os.RemoveAll(FileCoverJPG))
 
 	// extract res
@@ -77,9 +73,9 @@ func main() {
 		}
 	}
 
-	// build list
+	// names
+	var names []string
 	{
-		out := &bytes.Buffer{}
 		for _, item := range gg.Must(os.ReadDir(".")) {
 			if item.IsDir() {
 				continue
@@ -87,51 +83,47 @@ func main() {
 			if !strings.HasSuffix(strings.ToLower(item.Name()), ".mp4") {
 				continue
 			}
-			gg.Must(out.WriteString("file '" + item.Name() + "'\n"))
+			names = append(names, item.Name())
 		}
-		gg.Must0(os.WriteFile(FileListTXT, out.Bytes(), 0640))
-		defer os.RemoveAll(FileListTXT)
+		sort.Strings(names)
 	}
 
-	// combine file
-	{
-		gg.Must0(
-			execute(
-				"ffmpeg",
-				"-f",
-				"concat",
-				"-safe",
-				"0",
-				"-i",
-				FileListTXT,
-				"-c",
-				"copy",
-				FileCombinedMP4,
-			),
-		)
-		defer os.RemoveAll(FileCombinedMP4)
+	if len(names) == 0 {
+		err = errors.New("missing files")
+		return
 	}
 
-	// final
+	// create video
 	{
-		gg.Must0(
-			execute(
-				"ffmpeg",
-				"-i",
-				FileCombinedMP4,
-				"-i",
-				filepath.Join("res", "overlay.png"),
-				"-filter_complex",
-				"[0:v][1:v] overlay=0:0",
-				"-c:v",
-				"h264_videotoolbox",
-				"-b:v",
-				"15M",
-				"-an",
-				FileFinalMP4,
-			),
-		)
-		os.RemoveAll(FileCombinedMP4)
+		argv := []string{"ffmpeg"}
+		for _, item := range names {
+			argv = append(argv, "-i", item)
+		}
+		argv = append(argv, "-i", filepath.Join("res", "overlay.png"))
+		argv = append(argv, "-i", filepath.Join("res", "title-overlay-"+mode+"-work.png"))
+
+		idOverlay := len(names)
+		idTitle := idOverlay + 1
+
+		fcBuf := &bytes.Buffer{}
+
+		fcBuf.WriteString(fmt.Sprintf("[0:v] [%d:v] overlay=enable='between(t,3,10)' [new0]; ", idTitle))
+
+		fcBuf.WriteString("[new0] ")
+		for i := range names {
+			if i == 0 {
+				continue
+			}
+			fcBuf.WriteString(fmt.Sprintf("[%d:v] ", i))
+		}
+		fcBuf.WriteString(fmt.Sprintf("concat=n=%d:v=1:a=0 [stage1]; ", len(names)))
+		fcBuf.WriteString(fmt.Sprintf("[stage1] [%d:v] overlay [stage2]", idOverlay))
+
+		argv = append(argv, "-filter_complex", fcBuf.String())
+		argv = append(argv, "-map", "[stage2]")
+		argv = append(argv, "-c:v", "h264_videotoolbox", "-b:v", "15M", FileFinalMP4)
+
+		gg.Must0(execute(argv...))
 	}
 
 	// snapshot
@@ -147,27 +139,9 @@ func main() {
 				"1",
 				"-q:v",
 				"1",
-				FileCoverRawPNG,
-			),
-		)
-		defer os.RemoveAll(FileCoverRawPNG)
-	}
-
-	{
-		gg.Must0(
-			execute(
-				"ffmpeg",
-				"-i",
-				FileCoverRawPNG,
-				"-i",
-				filepath.Join("res", "cover-overlay-"+mode+"-work.png"),
-				"-filter_complex",
-				"[0:v][1:v] overlay=0:0",
 				FileCoverJPG,
 			),
 		)
-
-		os.RemoveAll(FileCoverRawPNG)
 	}
 
 }
