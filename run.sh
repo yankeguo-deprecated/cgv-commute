@@ -17,3 +17,7 @@ rm -f final.mp4
 ffmpeg -i combined.mp4 -i overlay.png -filter_complex '[0:v][1:v] overlay=0:0' -c:v h264_videotoolbox -b:v 15M -an final.mp4
 
 rm -f combined.mp4
+
+rm -f cover.png
+
+ffmpeg -ss 00:00:05 -i final.mp4 -vframes 1 -q:v 1 cover.png
